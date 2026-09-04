@@ -124,18 +124,27 @@ def main() -> None:
         report = review_document(text, settings=settings)
 
     m = report.meta
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Индекс готовности", f"{report.readiness_score}/100")
     sev = report.stats.get("by_severity", {})
-    c2.metric("Блокеры", sev.get("blocker", 0))
-    c3.metric("Существенные", sev.get("major", 0))
-    c4.metric("Незначительные", sev.get("minor", 0))
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("🔴 Блокеры", sev.get("blocker", 0))
+    c2.metric("🟠 Существенные", sev.get("major", 0))
+    c3.metric("🟡 Незначительные", sev.get("minor", 0))
+    c4.metric(
+        "Проработанность",
+        f"{report.readiness_score}/100",
+        help="Вспомогательный ориентир, не оценка готовности ТЗ. Решение о "
+        "передаче в разработку принимает аналитик.",
+    )
 
     st.subheader(report.verdict)
     if m.get("llm_error"):
         st.warning(f"LLM-анализ не выполнен: {m['llm_error']}. Показаны эвристики и покрытие шаблона.")
     st.write(report.summary)
-    st.caption(f"Режим: {m.get('provider_label')} · разделов: {m.get('sections_found')} · {m.get('elapsed_sec')} c")
+    st.caption(
+        f"Режим: {m.get('provider_label')} · разделов: {m.get('sections_found')} · "
+        f"{m.get('elapsed_sec')} c · инструмент не заменяет аналитика и не выносит "
+        f"решение о готовности документа"
+    )
 
     left, right = st.columns([3, 2])
     with left:

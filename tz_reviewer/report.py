@@ -20,13 +20,16 @@ def to_markdown(report: ReviewReport) -> str:
     lines: list[str] = []
     lines.append(f"# Предварительное ревью ТЗ: {report.document_title}")
     lines.append("")
-    lines.append(f"- **Вердикт:** {report.verdict}")
-    lines.append(f"- **Индекс готовности:** {report.readiness_score}/100")
     lines.append(
-        f"- **Замечаний:** {report.stats.get('total', len(report.findings))} "
-        f"(🔴 блокеры: {stats.get('blocker', 0)}, "
+        f"- **Замечаний:** {report.stats.get('total', len(report.findings))} — "
+        f"🔴 блокеры: {stats.get('blocker', 0)}, "
         f"🟠 существенные: {stats.get('major', 0)}, "
-        f"🟡 незначительные: {stats.get('minor', 0)})"
+        f"🟡 незначительные: {stats.get('minor', 0)}"
+    )
+    lines.append(f"- **Итог:** {report.verdict}")
+    lines.append(
+        f"- **Индекс проработанности:** {report.readiness_score}/100 "
+        f"— вспомогательный ориентир, **не оценка готовности** (решение принимает аналитик)"
     )
     lines.append(f"- **Режим анализа:** {m.get('provider_label', m.get('provider', '—'))}")
     lines.append(f"- **Сформировано:** {m.get('generated_at', '')} · за {m.get('elapsed_sec', '—')} c")
@@ -121,12 +124,16 @@ def to_html(report: ReviewReport) -> str:
         f"<p class='meta'>Режим: {esc(m.get('provider_label', ''))} · "
         f"{esc(m.get('generated_at', ''))} · разделов: {m.get('sections_found', '—')}</p>"
     )
-    out.append(f"<p><span class='score'>{report.readiness_score}/100</span> — {esc(report.verdict)}</p>")
     out.append(
         f"<p>Замечаний: <b>{report.stats.get('total', 0)}</b> — "
         f"<span class='badge blocker'>блокеры {stats.get('blocker', 0)}</span> "
         f"<span class='badge major'>существенные {stats.get('major', 0)}</span> "
         f"<span class='badge minor'>незначительные {stats.get('minor', 0)}</span></p>"
+    )
+    out.append(f"<p><b>Итог:</b> {esc(report.verdict)}</p>")
+    out.append(
+        f"<p class='meta'>Индекс проработанности: <b>{report.readiness_score}/100</b> — "
+        f"вспомогательный ориентир, не оценка готовности (решение принимает аналитик).</p>"
     )
     if m.get("llm_error"):
         out.append(f"<p class='meta'>⚠️ LLM-анализ не выполнен: {esc(m['llm_error'])}</p>")
