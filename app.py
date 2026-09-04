@@ -5,8 +5,7 @@
 
 from __future__ import annotations
 
-import io
-import time
+import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -73,8 +72,9 @@ def _get_input_text() -> tuple[str, str]:
         if up is not None:
             suffix = Path(up.name).suffix.lower()
             if suffix == ".docx":
-                tmp = Path(st.session_state.get("_tmpdir", ".")) / f"_upload_{int(time.time())}.docx"
-                tmp.write_bytes(up.getvalue())
+                with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as fh:
+                    fh.write(up.getvalue())
+                    tmp = Path(fh.name)
                 try:
                     text = load_text(tmp)
                 finally:
