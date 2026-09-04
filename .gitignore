@@ -13,11 +13,12 @@ env/
 .env
 .env.local
 
-# Вывод инструмента
-out/*.md
-out/*.html
-out/*.json
+# Вывод инструмента и временные файлы
+out/*
 !out/.gitkeep
+
+# Артефакты сборки презентации (генерируются из .js)
+presentation/node_modules/
 
 # ОС / редакторы
 .DS_Store
