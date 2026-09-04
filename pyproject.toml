@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tz-reviewer"
+version = "0.1.0"
+description = "AI-инструмент предварительного ревью технических заданий на потоки и витрины данных"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5",
+    "python-dotenv>=1.0",
+    "python-docx>=1.1",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.33"]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.30"]
+all = ["streamlit>=1.33", "anthropic>=0.40", "openai>=1.30"]
+
+[project.scripts]
+tz-reviewer = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli"]
+
+[tool.setuptools.packages.find]
+include = ["tz_reviewer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

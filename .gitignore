@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Секреты и локальная конфигурация
+.env
+.env.local
+
+# Вывод инструмента
+out/*.md
+out/*.html
+out/*.json
+!out/.gitkeep
+
+# ОС / редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

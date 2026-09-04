@@ -1,0 +1,13 @@
+# Ядро
+pydantic>=2.5
+python-dotenv>=1.0
+
+# Чтение .docx (ТЗ от аналитиков)
+python-docx>=1.1
+
+# Демо-интерфейс
+streamlit>=1.33
+
+# Провайдеры LLM (нужен хотя бы один; для offline-режима не требуются)
+anthropic>=0.40
+openai>=1.30
