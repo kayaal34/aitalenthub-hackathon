@@ -403,15 +403,15 @@ function bullets(slide, items, x, y, w, h, opts = {}) {
     MX, 2.3, CW / 2 - 0.3, 2.1, { size: 12.5, gap: 11, color: P.INK2 }
   );
 
-  s.addText("ОСТАЁТСЯ РИСКОМ / НЕ ИЗМЕРЕНО", { x: MX, y: 4.3, w: CW / 2 - 0.3, h: 0.32, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 12, bold: true, charSpacing: 1, color: P.AMBER });
+  s.addText("ПРОВЕРЕНО КАЧЕСТВЕННО, НЕ В ЦИФРАХ", { x: MX, y: 4.3, w: CW / 2 - 0.3, h: 0.32, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 12, bold: true, charSpacing: 1, color: P.AMBER });
   bullets(
     s,
     [
-      "нет пост-проверки, что цитата дословно есть в тексте;",
-      "precision/recall не измерены на размеченной выборке;",
-      "few-shot построен на обобщённом опыте, не на реальных правках NET.",
+      "качество замечаний оценено вручную (эксперт прочитал все отчёты) — не переведено в precision/recall, для этого нужна разметка эталонных находок;",
+      "нет пост-проверки, что цитата дословно есть в тексте (пока — визуальная сверка);",
+      "few-shot построен на обобщённом опыте, не на реальных правках NET — их ещё предстоит получить.",
     ],
-    MX, 4.7, CW / 2 - 0.3, 1.7, { size: 12.5, gap: 11, color: P.INK2 }
+    MX, 4.7, CW / 2 - 0.3, 1.7, { size: 11, gap: 10, color: P.INK2, lsm: 1.08 }
   );
 
   const rx = MX + CW / 2 + 0.3;
