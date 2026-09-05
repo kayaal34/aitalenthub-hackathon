@@ -12,9 +12,9 @@
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
-import re
 
 from .config import Settings
 from .document import guess_title, numbered_document, split_sections
@@ -34,7 +34,47 @@ from .rubric import RUBRIC_BY_KEY, RUBRIC_KEYS
 from .scoring import apply_scoring, compose_fallback_summary
 
 
-_NOT_APPLICABLE = re.compile(r"\bне\s+применим[оаы]\b", re.IGNORECASE)
+_NOT_APPLICABLE = re.compile(
+    r"не\s+применимо(?:[.!]|\s*[—–:]\s*[^\n]+)?", re.IGNORECASE
+)
+
+
+def _coverage_content(body: str) -> str:
+    """Текст без пустых строк и Markdown-таблиц, содержащих только шапку.
+
+    Это проверка наличия содержимого, а не его смысловой достаточности.
+    Непустые строки данных сохраняются независимо от имён полей и столбцов.
+    """
+
+    lines = body.splitlines()
+    content: list[str] = []
+    index = 0
+    while index < len(lines):
+        if lines[index].strip().startswith("|"):
+            table: list[str] = []
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                table.append(lines[index])
+                index += 1
+            if len(table) >= 2:
+                cells = table[1].strip().strip("|").split("|")
+                if all(re.fullmatch(r"\s*:?-{3,}:?\s*", cell) for cell in cells):
+                    table = table[2:]
+            for row in table:
+                if re.sub(r"<br\s*/?>|[|\s]", "", row, flags=re.IGNORECASE):
+                    content.append(row)
+        else:
+            if lines[index].strip():
+                content.append(lines[index])
+            index += 1
+    return "\n".join(content).strip()
+
+
+def _is_not_applicable(body: str) -> bool:
+    # Принимаем отдельное заявление, в том числе выделенное **жирным**.
+    # Инструкция «если не нужно, напишите ...» и цитата внутри примера —
+    # не заявление о применимости раздела.
+    statement = body.strip().replace("**", "").replace("__", "")
+    return _NOT_APPLICABLE.fullmatch(statement) is not None
 
 
 def _section_scope(section: Section, all_sections: list[Section]) -> list[Section]:
@@ -84,17 +124,36 @@ def _coverage_item(
             comment="обязательный раздел не найден",
         )
 
-    scoped_text = "\n".join(
-        child.body for heading in matched_headings for child in _section_scope(heading, sections)
-    ).strip()
-    if _NOT_APPLICABLE.search(scoped_text):
+    # Синонимичный заголовок потомка не должен переопределять своего родителя.
+    root_matches = [
+        heading for heading in matched_headings
+        if not any(
+            heading is descendant
+            for parent in matched_headings if parent is not heading
+            for descendant in _section_scope(parent, sections)[1:]
+        )
+    ]
+    states: list[TemplateCoverageStatus] = []
+    for heading in root_matches:
+        own_content = _coverage_content(heading.body)
+        child_content = any(
+            _coverage_content(child.body) for child in _section_scope(heading, sections)[1:]
+        )
+        if _is_not_applicable(own_content) and not child_content:
+            states.append(TemplateCoverageStatus.not_applicable)
+        elif own_content or child_content:
+            states.append(TemplateCoverageStatus.complete)
+        else:
+            states.append(TemplateCoverageStatus.empty)
+
+    if states and all(state == TemplateCoverageStatus.not_applicable for state in states):
         return TemplateCoverageItem(
             section=name,
             present=True,
             status=TemplateCoverageStatus.not_applicable,
             comment="раздел сохранён и явно помечен «не применимо»",
         )
-    if scoped_text:
+    if any(state != TemplateCoverageStatus.empty for state in states):
         return TemplateCoverageItem(
             section=name,
             present=True,
@@ -104,7 +163,7 @@ def _coverage_item(
     return TemplateCoverageItem(
         section=name,
         status=TemplateCoverageStatus.empty,
-        comment="раздел присутствует, но не содержит описания или «не применимо»",
+        comment="раздел не содержит описания или «не применимо»; одна шапка таблицы недостаточна",
         evidence_section=matched_headings[0].heading,
         evidence_quote=matched_headings[0].heading,
     )
@@ -141,7 +200,7 @@ def _coverage_findings(coverage: list[TemplateCoverageItem]) -> list[Finding]:
             continue
         if item.status == TemplateCoverageStatus.empty:
             issue = (
-                f"Обязательный раздел шаблона «{item.section}» сохранён, но пустой "
+                f"Обязательный раздел шаблона «{item.section}» сохранён, но не заполнен "
                 "и не содержит явной пометки «не применимо»."
             )
             recommendation = "Заполнить раздел конкретикой либо явно указать «не применимо»."

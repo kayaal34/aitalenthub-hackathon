@@ -134,7 +134,8 @@ def main() -> None:
     c4.metric(
         "Покрытие шаблона",
         f"{present}/{total_sections}",
-        help="Сколько разделов официального шаблона МТС нашлось в документе. "
+        help="Сколько разделов шаблона содержит текст или явную пометку «не применимо». "
+        "Наличие текста не гарантирует полноту требований. "
         "Не оценка готовности ТЗ — решение о передаче в разработку принимает аналитик.",
     )
 
@@ -148,8 +149,8 @@ def main() -> None:
         f"решение о готовности документа"
     )
 
-    left, right = st.columns([3, 2])
-    with left:
+    findings_tab, coverage_tab = st.tabs(["Замечания", "Покрытие шаблона"])
+    with findings_tab:
         st.subheader(f"Замечания ({len(report.findings)})")
         cats = ["все"] + sorted({f.category_title for f in report.findings})
         pick_cat = st.selectbox("Категория", cats, label_visibility="collapsed")
@@ -168,8 +169,12 @@ def main() -> None:
                     st.markdown(f"**Что уточнить или добавить:** {f.recommendation}")
                 if f.question_for_analyst:
                     st.markdown(f"**Вопрос аналитику:** {f.question_for_analyst}")
-    with right:
+    with coverage_tab:
         st.subheader("Покрытие шаблона")
+        st.caption(
+            "Заполнен — есть содержимое; не применимо — явное заявление в этом разделе. "
+            "Пустой — нет содержимого; упомянут вне раздела — тема найдена без нужного заголовка."
+        )
         st.dataframe(
             {
                 "Раздел": [c.section for c in report.template_coverage],
