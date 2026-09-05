@@ -83,10 +83,43 @@ def _guess_category(entry: dict) -> str | None:
     return None
 
 
+# Категории, которые LLM и офлайн-эвристики проверяют по одному и тому же
+# официальному критерию (Kafka-кластер, HDFS-путь, Data Catalog) — здесь LLM и
+# правило нередко указывают один и тот же пробел, но цитируют разные строки и
+# разные разделы документа. Дедуплицируем такие находки по теме, а не по
+# точной цитате/разделу, иначе одна и та же проблема попадает в отчёт дважды.
+_TOPIC_DEDUPE_CATEGORIES = {"infra_params", "data_catalog"}
+
+
+def _topic_tag(f: Finding) -> str:
+    # Намеренно берём только issue/recommendation (не quote): цитата — сырой
+    # фрагмент документа и может упоминать и Kafka, и HDFS в одной строке
+    # (например, в шапке таблицы), а issue — это уже собственная формулировка
+    # находки, которая называет ровно ту проблему, которую она описывает.
+    blob = f"{f.issue} {f.recommendation}".lower()
+    has_kafka = "kafka" in blob or "кафка" in blob or "кластер" in blob
+    has_hdfs = "hdfs" in blob or ("путь" in blob and "формат хранения" in blob)
+    if has_kafka and not has_hdfs:
+        return "kafka"
+    if has_hdfs and not has_kafka:
+        return "hdfs"
+    if "data catalog" in blob or "датакаталог" in blob or "дата-каталог" in blob:
+        return "data_catalog"
+    return ""
+
+
+def _dedupe_key(f: Finding) -> tuple[str, str]:
+    if f.category in _TOPIC_DEDUPE_CATEGORIES:
+        tag = _topic_tag(f)
+        if tag:
+            return (f.category, tag)
+    return f.key()
+
+
 def _dedupe(findings: list[Finding]) -> list[Finding]:
     seen: dict[tuple[str, str], Finding] = {}
     for f in findings:
-        key = f.key()
+        key = _dedupe_key(f)
         if key not in seen:
             seen[key] = f
             continue
