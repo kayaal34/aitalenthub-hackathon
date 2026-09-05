@@ -6,7 +6,7 @@
 """
 
 from .config import Settings
-from .models import Finding, ReviewReport, Section, Severity, TemplateCoverageItem
+from .models import Finding, ReviewReport, Section, Severity, TemplateCoverageItem, TemplateCoverageStatus
 
 __version__ = "0.1.0"
 
@@ -17,6 +17,7 @@ __all__ = [
     "Section",
     "Severity",
     "TemplateCoverageItem",
+    "TemplateCoverageStatus",
     "review_document",
     "__version__",
 ]

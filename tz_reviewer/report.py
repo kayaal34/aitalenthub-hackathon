@@ -79,8 +79,7 @@ def to_markdown(report: ReviewReport) -> str:
     lines.append("| Раздел шаблона | Статус | Комментарий |")
     lines.append("| --- | :---: | --- |")
     for c in report.template_coverage:
-        mark = "✅" if c.present else "❌"
-        lines.append(f"| {c.section} | {mark} | {c.comment} |")
+        lines.append(f"| {c.section} | {c.status.icon} {c.status.ru} | {c.comment} |")
     lines.append("")
 
     lines.append("## Как читать отчёт")
@@ -175,7 +174,7 @@ def to_html(report: ReviewReport) -> str:
     out.append("<table><tr><th>Раздел</th><th>Статус</th><th>Комментарий</th></tr>")
     for c in report.template_coverage:
         out.append(
-            f"<tr><td>{esc(c.section)}</td><td>{'✅' if c.present else '❌'}</td>"
+            f"<tr><td>{esc(c.section)}</td><td>{c.status.icon} {esc(c.status.ru)}</td>"
             f"<td>{esc(c.comment)}</td></tr>"
         )
     out.append("</table>")
