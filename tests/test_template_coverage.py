@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from tz_reviewer.analyzer import check_template_coverage
+from tz_reviewer.analyzer import check_template_coverage, review_document
+from tz_reviewer.config import Settings
 from tz_reviewer.document import split_sections
 from tz_reviewer.models import TemplateCoverageStatus
 
@@ -51,3 +52,35 @@ def test_real_mart_partition_reference_is_mentioned_not_a_section():
     item = _item(text, "Формирование ключа (Kafka) / партиции (HDFS)")
     assert item.status == TemplateCoverageStatus.mentioned
     assert item.present is False
+    assert item.evidence_section == "Требования к агрегату"
+    assert item.evidence_quote == "| Поле партиционирования | FIELD_BIZ_DATE |"
+
+
+def test_empty_or_mentioned_sections_create_anchored_rule_findings():
+    text = (
+        "## Общие сведения\nФормирование партиции выполняется по business_date.\n"
+        "## Data Catalog\n"
+    )
+    report = review_document(text, settings=Settings(provider="offline", api_key=""))
+    coverage_findings = [
+        finding for finding in report.findings
+        if finding.category == "consistency" and "раздел" in finding.issue.lower()
+    ]
+    assert len(coverage_findings) == 2
+    assert all(finding.source == "rule" and finding.quote for finding in coverage_findings)
+    assert {finding.section for finding in coverage_findings} == {"Общие сведения", "Data Catalog"}
+
+
+def test_real_mart_shows_partition_section_gap_as_finding():
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / "examples" / "case_3_device_agg_vitrina.md").read_text(
+        encoding="utf-8"
+    )
+    report = review_document(text, settings=Settings(provider="offline", api_key=""))
+    finding = next(
+        finding for finding in report.findings
+        if "Формирование ключа" in finding.issue
+    )
+    assert finding.section == "Требования к агрегату"
+    assert finding.quote == "| Поле партиционирования | FIELD_BIZ_DATE |"
