@@ -130,6 +130,8 @@ class TemplateCoverageItem(BaseModel):
     present: bool = False
     status: TemplateCoverageStatus = TemplateCoverageStatus.missing
     comment: str = ""
+    evidence_section: str = ""
+    evidence_quote: str = ""
 
 
 class ReviewReport(BaseModel):

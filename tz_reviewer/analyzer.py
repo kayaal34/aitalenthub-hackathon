@@ -50,6 +50,14 @@ def _section_scope(section: Section, all_sections: list[Section]) -> list[Sectio
     return [section, *descendants]
 
 
+def _first_matching_line(section: Section, keywords: tuple[str, ...]) -> str:
+    for raw_line in section.body.splitlines():
+        line = raw_line.strip()
+        if line and any(keyword in line.lower() for keyword in keywords):
+            return line[:600]
+    return section.body.strip()[:600]
+
+
 def _coverage_item(
     name: str, keywords: tuple[str, ...], sections: list[Section], body_text: str
 ) -> TemplateCoverageItem:
@@ -59,10 +67,16 @@ def _coverage_item(
     ]
     if not matched_headings:
         if any(keyword in body_text for keyword in keywords):
+            evidence_section = next(
+                (section for section in sections if any(keyword in section.body.lower() for keyword in keywords)),
+                None,
+            )
             return TemplateCoverageItem(
                 section=name,
                 status=TemplateCoverageStatus.mentioned,
                 comment="тема упомянута в тексте, но обязательный отдельный раздел не найден",
+                evidence_section=evidence_section.heading if evidence_section else "Документ в целом",
+                evidence_quote=_first_matching_line(evidence_section, keywords) if evidence_section else "",
             )
         return TemplateCoverageItem(
             section=name,
@@ -91,6 +105,8 @@ def _coverage_item(
         section=name,
         status=TemplateCoverageStatus.empty,
         comment="раздел присутствует, но не содержит описания или «не применимо»",
+        evidence_section=matched_headings[0].heading,
+        evidence_quote=matched_headings[0].heading,
     )
 
 
@@ -107,6 +123,57 @@ def check_template_coverage(sections: list[Section], full_text: str) -> list[Tem
     for name, keywords in TEMPLATE_SECTIONS:
         items.append(_coverage_item(name, keywords, sections, body_text))
     return items
+
+
+def _coverage_findings(coverage: list[TemplateCoverageItem]) -> list[Finding]:
+    """Делает структурные пробелы заметными рядом с обычными замечаниями.
+
+    Полностью отсутствующие разделы остаются в таблице покрытия: в документе
+    нет честной цитаты, к которой можно привязать Finding. Пустой раздел или
+    упоминание темы вне обязательного раздела, напротив, имеют точный якорь.
+    """
+
+    findings: list[Finding] = []
+    category = "consistency"
+    category_title = RUBRIC_BY_KEY[category].title
+    for item in coverage:
+        if item.status not in {TemplateCoverageStatus.empty, TemplateCoverageStatus.mentioned}:
+            continue
+        if item.status == TemplateCoverageStatus.empty:
+            issue = (
+                f"Обязательный раздел шаблона «{item.section}» сохранён, но пустой "
+                "и не содержит явной пометки «не применимо»."
+            )
+            recommendation = "Заполнить раздел конкретикой либо явно указать «не применимо»."
+            question = f"Какая информация должна быть добавлена в раздел «{item.section}»?"
+        else:
+            issue = (
+                f"Тема «{item.section}» упомянута, но обязательный отдельный раздел "
+                "шаблона не сохранён."
+            )
+            recommendation = (
+                f"Добавить отдельный раздел «{item.section}» и перенести в него "
+                "правило или явную пометку «не применимо»."
+            )
+            question = f"Где в ТЗ должно быть полное описание для раздела «{item.section}»?"
+        findings.append(
+            Finding(
+                category=category,
+                category_title=category_title,
+                severity=Severity.major,
+                section=item.evidence_section or "Документ в целом",
+                quote=item.evidence_quote,
+                issue=issue,
+                impact=(
+                    "Информация разрознена либо отсутствует: разработчик может не найти "
+                    "требование и реализовать поток иначе, чем ожидает аналитик."
+                ),
+                recommendation=recommendation,
+                question_for_analyst=question,
+                source="rule",
+            )
+        )
+    return findings
 
 
 def _coerce_findings(payload: dict) -> list[Finding]:
@@ -244,6 +311,7 @@ def review_document(
             llm_error = f"неожиданная ошибка LLM-анализа: {exc}"
 
     findings.extend(run_heuristics(sections))
+    findings.extend(_coverage_findings(coverage))
     findings = _sort(_dedupe(findings))
     for f in findings:
         f.id = f.id or uuid.uuid4().hex[:8]
