@@ -74,12 +74,13 @@ def compose_fallback_summary(
     n_major = sum(1 for f in findings if f.severity == Severity.major)
     n_minor = sum(1 for f in findings if f.severity == Severity.minor)
     missing = [c.section for c in coverage if not c.present]
+    present_count = len(coverage) - len(missing)
 
     lines = [
         f"Предварительная проверка ТЗ «{report_title}». Найдено замечаний: "
         f"{len(findings)} — из них блокирующих {n_block}, существенных {n_major}, "
-        f"незначительных {n_minor} (индекс проработанности {score}/100 — ориентир, "
-        f"не оценка готовности).",
+        f"незначительных {n_minor}. Покрытие шаблона: {present_count} из "
+        f"{len(coverage)} разделов.",
     ]
     if missing:
         lines.append(

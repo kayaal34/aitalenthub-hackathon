@@ -125,15 +125,17 @@ def main() -> None:
 
     m = report.meta
     sev = report.stats.get("by_severity", {})
+    present = sum(1 for c in report.template_coverage if c.present)
+    total_sections = len(report.template_coverage)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("🔴 Блокеры", sev.get("blocker", 0))
     c2.metric("🟠 Существенные", sev.get("major", 0))
     c3.metric("🟡 Незначительные", sev.get("minor", 0))
     c4.metric(
-        "Проработанность",
-        f"{report.readiness_score}/100",
-        help="Вспомогательный ориентир, не оценка готовности ТЗ. Решение о "
-        "передаче в разработку принимает аналитик.",
+        "Покрытие шаблона",
+        f"{present}/{total_sections}",
+        help="Сколько разделов официального шаблона МТС нашлось в документе. "
+        "Не оценка готовности ТЗ — решение о передаче в разработку принимает аналитик.",
     )
 
     st.subheader(report.verdict)
