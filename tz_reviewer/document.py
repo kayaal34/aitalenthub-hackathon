@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 from .models import Section
 
@@ -39,8 +40,10 @@ def _read_docx(p: Path) -> str:
         from docx.document import Document as _Document
         from docx.oxml.table import CT_Tbl
         from docx.oxml.text.paragraph import CT_P
+        from docx.oxml.ns import qn
         from docx.table import Table, _Cell
         from docx.text.paragraph import Paragraph
+        from docx.text.run import Run
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "Чтение .docx требует python-docx. Установите: pip install python-docx"
@@ -59,36 +62,58 @@ def _read_docx(p: Path) -> str:
             elif isinstance(child, CT_Tbl):
                 yield Table(child, parent)
 
-    document = docx.Document(str(p))
-    out: list[str] = []
-    for block in iter_blocks(document):
-        if isinstance(block, Paragraph):
-            text = block.text.rstrip()
-            if not text:
+    def paragraph_text(paragraph):
+        # paragraph.text сохраняет подпись ссылки, но теряет её URL.
+        parts: list[str] = []
+        for child in paragraph._p:
+            if child.tag == qn("w:r"):
+                parts.append(Run(child, paragraph).text)
+            elif child.tag == qn("w:hyperlink"):
+                label = "".join(Run(run, paragraph).text for run in child.findall(qn("w:r")))
+                rel_id = child.get(qn("r:id"))
+                rel = paragraph.part.rels.get(rel_id) if rel_id else None
+                target = rel.target_ref if rel is not None and rel.is_external else ""
+                anchor = child.get(qn("w:anchor"))
+                if anchor:
+                    target = target + "#" + anchor
+                if target:
+                    safe_target = quote(target, safe="/:#?&=@%+;,!$'()*-._~")
+                    safe_label = label.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+                    parts.append(f"[{safe_label or safe_target}](<{safe_target}>)")
+                else:
+                    parts.append(label)
+        return "".join(parts)
+
+    def render_blocks(parent):
+        out: list[str] = []
+        for block in iter_blocks(parent):
+            if isinstance(block, Paragraph):
+                text = paragraph_text(block).rstrip()
+                style = (block.style.name or "").lower() if block.style else ""
+                if text and style.startswith("heading"):
+                    level = "".join(ch for ch in style if ch.isdigit()) or "2"
+                    out.append(f"{'#' * min(int(level), 6)} {text}")
+                else:
+                    out.append(text)
+            else:  # Table, включая вложенные таблицы в ячейках
+                rows = [
+                    ["\n".join(render_blocks(cell)).strip().replace("|", "\\|")
+                     .replace("\n", "<br>") for cell in row.cells]
+                    for row in block.rows
+                ]
+                if not rows:
+                    continue
+                width = max(len(r) for r in rows)
+                rows = [r + [""] * (width - len(r)) for r in rows]
                 out.append("")
-                continue
-            style = (block.style.name or "").lower() if block.style else ""
-            if style.startswith("heading"):
-                level = "".join(ch for ch in style if ch.isdigit()) or "2"
-                out.append(f"{'#' * min(int(level), 6)} {text}")
-            else:
-                out.append(text)
-        else:  # Table
-            rows = [
-                [cell.text.strip().replace("\n", " ") for cell in row.cells]
-                for row in block.rows
-            ]
-            if not rows:
-                continue
-            width = max(len(r) for r in rows)
-            rows = [r + [""] * (width - len(r)) for r in rows]
-            out.append("")
-            out.append("| " + " | ".join(rows[0]) + " |")
-            out.append("| " + " | ".join(["---"] * width) + " |")
-            for r in rows[1:]:
-                out.append("| " + " | ".join(r) + " |")
-            out.append("")
-    return "\n".join(out)
+                out.append("| " + " | ".join(rows[0]) + " |")
+                out.append("| " + " | ".join(["---"] * width) + " |")
+                for row in rows[1:]:
+                    out.append("| " + " | ".join(row) + " |")
+                out.append("")
+        return out
+
+    return "\n".join(render_blocks(docx.Document(str(p))))
 
 
 def guess_title(text: str) -> str:
@@ -120,32 +145,62 @@ def _match_heading(line: str) -> tuple[str, str] | None:
 
 
 def split_sections(text: str) -> list[Section]:
-    """Разбивает документ на разделы по заголовкам (Markdown / нумерация / КАПС)."""
+    """Сохраняет пустые разделы и иерархию, не дублируя текст дочерних разделов."""
 
     lines = text.splitlines()
     sections: list[Section] = []
     cur = Section(title="Вводная часть", start_line=1)
     buf: list[str] = []
+    parents: list[Section] = []
+    body_line = 1
+    fence_char = ""
+    fence_size = 0
 
-    def flush() -> None:
-        cur.body = "\n".join(buf).strip()
-        if cur.body or not sections:
+    def flush(end_line: int) -> None:
+        first = next((i for i, line in enumerate(buf) if line.strip()), len(buf))
+        last = len(buf)
+        while last > first and not buf[last - 1].strip():
+            last -= 1
+        # Убираем только пустые края; отступы и содержимое цитат сохраняются.
+        cur.body = "\n".join(buf[first:last])
+        cur.body_start_line = body_line + first if cur.body else None
+        cur.end_line = end_line
+        if cur.level or cur.body:
             sections.append(cur)
 
     for i, line in enumerate(lines, 1):
+        fence = re.match(r"^\s{0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence_char:
+            buf.append(line)
+            if (fence and fence.group(1)[0] == fence_char
+                    and len(fence.group(1)) >= fence_size and not fence.group(2).strip()):
+                fence_char = ""
+            continue
+        if fence:
+            fence_char, fence_size = fence.group(1)[0], len(fence.group(1))
+            buf.append(line)
+            continue
         heading = _match_heading(line.strip())
         if heading is not None:
-            flush()
+            flush(i - 1)
             number, title = heading
-            cur = Section(number=number, title=title, start_line=i)
+            md_heading = _HEADING_MD.match(line.strip())
+            level = len(md_heading.group(1)) if md_heading else number.count(".") + 1
+            while parents and parents[-1].level >= level:
+                parents.pop()
+            cur = Section(
+                number=number, title=title, start_line=i, level=level,
+                parent_start_line=parents[-1].start_line if parents else None,
+            )
+            parents.append(cur)
             buf = []
+            body_line = i + 1
         else:
             buf.append(line)
-    flush()
+    flush(len(lines))
 
-    sections = [s for s in sections if s.body.strip()]
     if not sections:
-        sections = [Section(title="Документ", body=text.strip(), start_line=1)]
+        sections = [Section(title="Документ", start_line=1, end_line=len(lines))]
     return sections
 
 

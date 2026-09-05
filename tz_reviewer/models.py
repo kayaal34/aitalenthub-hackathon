@@ -53,10 +53,20 @@ class Severity(str, Enum):
 
 
 class Section(BaseModel):
+    """Раздел и координаты в тексте, возвращённом load_text (не страницы Word).
+
+    end_line — последняя строка до следующего заголовка, без вложенных
+    разделов. body_start_line указывает на первую строку непустого body.
+    """
+
     number: str = ""
     title: str = ""
     body: str = ""
     start_line: int = 0
+    end_line: int = 0
+    body_start_line: int | None = None
+    level: int = 0
+    parent_start_line: int | None = None
 
     @property
     def heading(self) -> str:
