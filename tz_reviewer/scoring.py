@@ -12,7 +12,11 @@ from __future__ import annotations
 from .models import Finding, ReviewReport, Severity, TemplateCoverageItem
 
 SEVERITY_WEIGHT = {Severity.blocker: 22, Severity.major: 9, Severity.minor: 3}
-MISSING_SECTION_WEIGHT = 8
+# Официальный шаблон МТС длиннее нашего первого приближения (21 раздел), и не
+# каждый документ обязан заполнять каждый раздел содержательно (некоторые
+# закрываются пометкой «не применимо») — вес снижен, чтобы не «обнулять»
+# индекс только за длину шаблона.
+MISSING_SECTION_WEIGHT = 5
 
 
 def score_document(
