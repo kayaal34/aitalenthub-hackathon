@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tz_reviewer.analyzer import check_template_coverage, review_document
 from tz_reviewer.config import Settings
 from tz_reviewer.document import split_sections
@@ -40,8 +42,65 @@ def test_topic_mentioned_in_body_does_not_replace_required_section():
 
 def test_child_steps_fill_their_parent_algorithm_section():
     item = _item("## Алгоритм обработки потока\n### Шаг 1\nНе применимо", "Алгоритм обработки потока / расчёта")
-    assert item.status == TemplateCoverageStatus.not_applicable
+    assert item.status == TemplateCoverageStatus.complete
     assert item.present is True
+
+
+@pytest.mark.parametrize("body", [
+    "Если раздел не нужен, напишите «не применимо».",
+    "Обработка выполняется ежедневно. Это ограничение не применимо к архиву.",
+    "```text\nНе применимо\n```",
+])
+def test_mentions_of_not_applicable_are_not_section_declarations(body):
+    item = _item(f"## Источники обогащения данных\n{body}", "Источники обогащения данных")
+    assert item.status == TemplateCoverageStatus.complete
+
+
+@pytest.mark.parametrize("body", ["Не применимо.", "**Не применимо.**", "НЕ ПРИМЕНИМО", "Не применимо — дополнительные источники не используются."])
+def test_standalone_not_applicable_declaration_is_accepted(body):
+    item = _item(f"## Источники обогащения данных\n{body}", "Источники обогащения данных")
+    assert item.status == TemplateCoverageStatus.not_applicable
+    assert item.present
+
+
+def test_mixed_child_steps_do_not_make_whole_algorithm_not_applicable():
+    item = _item(
+        "## Алгоритм обработки потока\n### Чтение\nЧитаем данные.\n"
+        "### Обогащение\nНе применимо.",
+        "Алгоритм обработки потока / расчёта",
+    )
+    assert item.status == TemplateCoverageStatus.complete
+
+
+def test_sibling_declaration_does_not_fill_empty_section():
+    item = _item("## FAQ\nНе применимо.\n## Data Catalog", "Data Catalog")
+    assert item.status == TemplateCoverageStatus.empty
+
+
+@pytest.mark.parametrize("table", [
+    "| Источник | Ссылка |\n| --- | --- |",
+    "| Name | URL |\n| :--- | ---: |\n|  |  |",
+    "| Name | URL |\n| --- | --- |\n| <br> |  |",
+])
+def test_table_header_without_data_is_empty_and_creates_finding(table):
+    name = "Источники обогащения данных"
+    text = f"## {name}\n{table}"
+    report = review_document(text, settings=Settings(provider="offline", api_key=""))
+    item = next(item for item in report.template_coverage if item.section == name)
+    assert item.status == TemplateCoverageStatus.empty
+    assert not item.present
+    finding = next(f for f in report.findings if f.category == "consistency" and name in f.issue)
+    assert finding.quote in text
+
+
+@pytest.mark.parametrize("content", [
+    "| Источник | Ссылка |\n| --- | --- |\n| dictionary_alpha | https://catalog.example/object/42 |",
+    "Справочники перечислены в приложении.\n| Источник | Ссылка |\n| --- | --- |",
+    "| A | B |\n| --- | --- |\n\n| C | D |\n| --- | --- |\n| dictionary_beta | 42 |",
+])
+def test_real_content_alongside_table_headers_is_preserved(content):
+    item = _item(f"## Источники обогащения данных\n{content}", "Источники обогащения данных")
+    assert item.status == TemplateCoverageStatus.complete
 
 
 def test_real_mart_partition_reference_is_mentioned_not_a_section():

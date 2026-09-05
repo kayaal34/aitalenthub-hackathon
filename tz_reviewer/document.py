@@ -139,6 +139,9 @@ def _match_heading(line: str) -> tuple[str, str] | None:
         title = m.group(2).strip()
         if title and title[0].isupper() and not title.endswith("."):
             return m.group(1), title
+    # Явная пометка применимости — содержимое раздела, даже в КАПС.
+    if re.fullmatch(r"не\s+применимо[.!]?", line, re.IGNORECASE):
+        return None
     if _HEADING_UPPER.match(line) and len(line.split()) <= 10:
         return "", line.strip()
     return None
