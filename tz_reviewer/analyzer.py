@@ -267,6 +267,39 @@ def _coerce_findings(payload: dict) -> list[Finding]:
     return out
 
 
+def _anchor_empty_section_findings(
+    findings: list[Finding], sections: list[Section], text: str
+) -> None:
+    """Restore a missing quote only for a uniquely identified empty section.
+
+    The heading is copied from the source, not synthesized from LLM output.
+    Existing quotes and findings with uncertain locations remain unchanged.
+    """
+    lines = text.splitlines()
+    for finding in findings:
+        if (finding.quote or finding.category != "consistency"
+                or not re.search(r"\bпуст\w*", finding.issue, re.IGNORECASE)):
+            continue
+        matches = [
+            section for index, section in enumerate(sections, 1)
+            if finding.section in {
+                section.heading,
+                f"{index}: {section.heading}",
+                f"Раздел {index}: {section.heading}",
+                f"[Раздел {index}: {section.heading}]",
+            }
+        ]
+        if len(matches) != 1:
+            continue
+        section = matches[0]
+        if not section.level or not 1 <= section.start_line <= len(lines):
+            continue
+        if any(s.body.strip() for s in _section_scope(section, sections)):
+            continue
+        finding.quote = lines[section.start_line - 1].strip()
+        finding.section = section.heading
+
+
 def _guess_category(entry: dict) -> str | None:
     blob = " ".join(str(entry.get(k, "")) for k in ("category", "issue", "recommendation")).lower()
     for key, item in RUBRIC_BY_KEY.items():
@@ -361,7 +394,9 @@ def review_document(
         )
         try:
             payload = client.generate_json(SYSTEM_PROMPT, user_prompt, repair_hint=REPAIR_HINT)
-            findings.extend(_coerce_findings(payload))
+            llm_findings = _coerce_findings(payload)
+            _anchor_empty_section_findings(llm_findings, sections, text)
+            findings.extend(llm_findings)
             summary = str(payload.get("summary") or "").strip()
             llm_meta = payload.get("_meta", {})
         except LLMError as exc:
