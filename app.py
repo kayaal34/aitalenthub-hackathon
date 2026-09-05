@@ -173,7 +173,8 @@ def main() -> None:
         st.dataframe(
             {
                 "Раздел": [c.section for c in report.template_coverage],
-                "Есть": ["да" if c.present else "нет" for c in report.template_coverage],
+                "Статус": [f"{c.status.icon} {c.status.ru}" for c in report.template_coverage],
+                "Комментарий": [c.comment for c in report.template_coverage],
             },
             hide_index=True,
             use_container_width=True,

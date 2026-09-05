@@ -52,6 +52,35 @@ class Severity(str, Enum):
         return mapping.get(text, cls.major)
 
 
+class TemplateCoverageStatus(str, Enum):
+    """Статус обязательного раздела в структуре ТЗ."""
+
+    complete = "complete"
+    empty = "empty"
+    not_applicable = "not_applicable"
+    mentioned = "mentioned"
+    missing = "missing"
+
+    @property
+    def ru(self) -> str:
+        return {
+            TemplateCoverageStatus.complete: "заполнен",
+            TemplateCoverageStatus.empty: "пустой",
+            TemplateCoverageStatus.not_applicable: "не применимо",
+            TemplateCoverageStatus.mentioned: "упомянут вне раздела",
+            TemplateCoverageStatus.missing: "не найден",
+        }[self]
+
+    @property
+    def icon(self) -> str:
+        return {
+            TemplateCoverageStatus.complete: "✅",
+            TemplateCoverageStatus.empty: "🟠",
+            TemplateCoverageStatus.not_applicable: "⚪",
+            TemplateCoverageStatus.mentioned: "🟡",
+            TemplateCoverageStatus.missing: "❌",
+        }[self]
+
 class Section(BaseModel):
     """Раздел и координаты в тексте, возвращённом load_text (не страницы Word).
 
@@ -98,7 +127,8 @@ class Finding(BaseModel):
 
 class TemplateCoverageItem(BaseModel):
     section: str
-    present: bool
+    present: bool = False
+    status: TemplateCoverageStatus = TemplateCoverageStatus.missing
     comment: str = ""
 
 

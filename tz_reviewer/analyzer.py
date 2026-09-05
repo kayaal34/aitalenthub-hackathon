@@ -14,32 +14,98 @@ from __future__ import annotations
 
 import time
 import uuid
+import re
 
 from .config import Settings
 from .document import guess_title, numbered_document, split_sections
 from .heuristics import run_heuristics
 from .knowledge import TEMPLATE_SECTIONS, load_knowledge
 from .llm import LLMClient, LLMError
-from .models import Finding, ReviewReport, Section, Severity, TemplateCoverageItem
+from .models import (
+    Finding,
+    ReviewReport,
+    Section,
+    Severity,
+    TemplateCoverageItem,
+    TemplateCoverageStatus,
+)
 from .prompts import REPAIR_HINT, SYSTEM_PROMPT, build_user_prompt
 from .rubric import RUBRIC_BY_KEY, RUBRIC_KEYS
 from .scoring import apply_scoring, compose_fallback_summary
 
 
+_NOT_APPLICABLE = re.compile(r"\bне\s+применим[оаы]\b", re.IGNORECASE)
+
+
+def _section_scope(section: Section, all_sections: list[Section]) -> list[Section]:
+    """Возвращает раздел и его потомков, не смешивая соседние ветви."""
+
+    descendants: list[Section] = []
+    pending = [section.start_line]
+    while pending:
+        parent_line = pending.pop()
+        children = [s for s in all_sections if s.parent_start_line == parent_line]
+        descendants.extend(children)
+        pending.extend(s.start_line for s in children)
+    return [section, *descendants]
+
+
+def _coverage_item(
+    name: str, keywords: tuple[str, ...], sections: list[Section], body_text: str
+) -> TemplateCoverageItem:
+    matched_headings = [
+        section for section in sections
+        if any(keyword in section.heading.lower() for keyword in keywords)
+    ]
+    if not matched_headings:
+        if any(keyword in body_text for keyword in keywords):
+            return TemplateCoverageItem(
+                section=name,
+                status=TemplateCoverageStatus.mentioned,
+                comment="тема упомянута в тексте, но обязательный отдельный раздел не найден",
+            )
+        return TemplateCoverageItem(
+            section=name,
+            status=TemplateCoverageStatus.missing,
+            comment="обязательный раздел не найден",
+        )
+
+    scoped_text = "\n".join(
+        child.body for heading in matched_headings for child in _section_scope(heading, sections)
+    ).strip()
+    if _NOT_APPLICABLE.search(scoped_text):
+        return TemplateCoverageItem(
+            section=name,
+            present=True,
+            status=TemplateCoverageStatus.not_applicable,
+            comment="раздел сохранён и явно помечен «не применимо»",
+        )
+    if scoped_text:
+        return TemplateCoverageItem(
+            section=name,
+            present=True,
+            status=TemplateCoverageStatus.complete,
+            comment="раздел присутствует и заполнен",
+        )
+    return TemplateCoverageItem(
+        section=name,
+        status=TemplateCoverageStatus.empty,
+        comment="раздел присутствует, но не содержит описания или «не применимо»",
+    )
+
+
 def check_template_coverage(sections: list[Section], full_text: str) -> list[TemplateCoverageItem]:
-    haystack = " \n ".join(s.heading + " " + s.body for s in sections).lower()
-    headings = " \n ".join(s.heading for s in sections).lower()
+    """Проверяет структуру, а не только факт упоминания слов из шаблона.
+
+    Упоминание темы в другом разделе полезно для аналитика, но не заменяет
+    обязательный раздел: оно получает отдельный статус ``mentioned``.
+    """
+
+    del full_text  # API сохранён для обратной совместимости с внешними вызовами.
+    body_text = "\n".join(section.body for section in sections).lower()
     items: list[TemplateCoverageItem] = []
     for name, keywords in TEMPLATE_SECTIONS:
-        in_heading = any(k in headings for k in keywords)
-        in_body = any(k in haystack for k in keywords)
-        if in_heading:
-            comment = "раздел присутствует"
-        elif in_body:
-            comment = "тема упомянута в тексте, но нет отдельного раздела"
-        else:
-            comment = "не найдено — проверьте, нужен ли раздел для этого ТЗ"
-        items.append(TemplateCoverageItem(section=name, present=in_heading or in_body, comment=comment))
+        items.append(_coverage_item(name, keywords, sections, body_text))
     return items
 
 
