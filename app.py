@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import tempfile
+from hashlib import sha256
 from pathlib import Path
 
 import streamlit as st
@@ -115,13 +116,22 @@ def main() -> None:
     settings = _load_settings()
     text, name = _get_input_text()
 
+    input_id = (name, sha256(text.encode("utf-8")).hexdigest())
+    if st.session_state.get("review_input_id") != input_id:
+        st.session_state.pop("review_report", None)
+        st.session_state.pop("review_input_id", None)
+
     run = st.button("🔍 Проверить ТЗ", type="primary", disabled=not text.strip())
-    if not run:
+    if run:
+        st.session_state.pop("review_report", None)
+        with st.spinner("Анализируем…"):
+            st.session_state["review_report"] = review_document(text, settings=settings)
+            st.session_state["review_input_id"] = input_id
+
+    report = st.session_state.get("review_report")
+    if report is None:
         st.info("Вставьте текст, загрузите файл или выберите пример — затем нажмите «Проверить ТЗ».")
         return
-
-    with st.spinner("Анализируем…"):
-        report = review_document(text, settings=settings)
 
     m = report.meta
     sev = report.stats.get("by_severity", {})
