@@ -27,9 +27,11 @@ def to_markdown(report: ReviewReport) -> str:
         f"🟡 незначительные: {stats.get('minor', 0)}"
     )
     lines.append(f"- **Итог:** {report.verdict}")
+    present = sum(1 for c in report.template_coverage if c.present)
+    total_sections = len(report.template_coverage)
     lines.append(
-        f"- **Индекс проработанности:** {report.readiness_score}/100 "
-        f"— вспомогательный ориентир, **не оценка готовности** (решение принимает аналитик)"
+        f"- **Покрытие шаблона:** {present} из {total_sections} разделов "
+        f"(решение о готовности документа принимает аналитик)"
     )
     lines.append(f"- **Режим анализа:** {m.get('provider_label', m.get('provider', '—'))}")
     lines.append(f"- **Сформировано:** {m.get('generated_at', '')} · за {m.get('elapsed_sec', '—')} c")
@@ -131,9 +133,11 @@ def to_html(report: ReviewReport) -> str:
         f"<span class='badge minor'>незначительные {stats.get('minor', 0)}</span></p>"
     )
     out.append(f"<p><b>Итог:</b> {esc(report.verdict)}</p>")
+    present = sum(1 for c in report.template_coverage if c.present)
+    total_sections = len(report.template_coverage)
     out.append(
-        f"<p class='meta'>Индекс проработанности: <b>{report.readiness_score}/100</b> — "
-        f"вспомогательный ориентир, не оценка готовности (решение принимает аналитик).</p>"
+        f"<p class='meta'>Покрытие шаблона: <b>{present} из {total_sections}</b> разделов "
+        f"— решение о готовности документа принимает аналитик.</p>"
     )
     if m.get("llm_error"):
         out.append(f"<p class='meta'>⚠️ LLM-анализ не выполнен: {esc(m['llm_error'])}</p>")
