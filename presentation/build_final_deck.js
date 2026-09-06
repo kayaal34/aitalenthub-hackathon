@@ -287,37 +287,40 @@ function bullets(slide, items, x, y, w, h, opts = {}) {
   bg(s, P.PAPER);
   header(s, "Проверка на реальных данных", "3 документа кейсодателя, 2 режима анализа");
 
-  const lw = CW * 0.42;
+  // Компактный ряд из 3 документов
+  const gap = 0.24;
+  const dw = (CW - gap * 2) / 3;
   const docs = [
-    ["Поток геолокации", "модуль реального времени, 2 источника, 5 целевых таблиц"],
-    ["Поток CDR", "prepaid-звонки/SMS, фильтрация и коррекция часового пояса"],
-    ["Витрина-агрегат", "ежемесячная сводка по устройствам — образец финального теста"],
+    ["Поток геолокации", "модуль реального времени"],
+    ["Поток CDR", "prepaid-звонки и SMS"],
+    ["Витрина-агрегат", "образец финального теста"],
   ];
-  let dy = 1.95;
-  docs.forEach((d) => {
-    s.addShape("roundRect", { x: MX, y: dy, w: lw, h: 1.05, rectRadius: 0.07, fill: { color: P.MIST }, line: { color: P.LINE, width: 1 } });
-    s.addText(d[0], { x: MX + 0.24, y: dy + 0.12, w: lw - 0.48, h: 0.32, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 13.5, bold: true, color: P.INK });
-    s.addText(d[1], { x: MX + 0.24, y: dy + 0.46, w: lw - 0.48, h: 0.52, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 10.5, color: P.SLATE, lineSpacingMultiple: 1.15, fit: "shrink" });
-    dy += 1.2;
+  docs.forEach((d, i) => {
+    const x = MX + i * (dw + gap);
+    s.addShape("roundRect", { x, y: 1.72, w: dw, h: 0.72, rectRadius: 0.07, fill: { color: P.MIST }, line: { color: P.LINE, width: 1 } });
+    s.addText(
+      [
+        { text: d[0] + "  ", options: { bold: true, color: P.INK, fontSize: 12.5 } },
+        { text: "· " + d[1], options: { color: P.SLATE, fontSize: 10.5 } },
+      ],
+      { x: x + 0.18, y: 1.72, w: dw - 0.36, h: 0.72, isTextBox: true, margin: 0, valign: "middle", fontFace: BODY, lineSpacingMultiple: 1.1, fit: "shrink" }
+    );
   });
 
-  s.addShape("roundRect", { x: MX, y: dy + 0.05, w: lw, h: 1.75, rectRadius: 0.08, fill: { color: P.INK }, line: { type: "none" } });
-  s.addText("2 РЕЖИМА, ОБА БЕЗ СБОЕВ", { x: MX + 0.26, y: dy + 0.26, w: lw - 0.52, h: 0.3, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 11, bold: true, charSpacing: 1, color: P.AMBER });
-  s.addText("Офлайн (эвристики + покрытие шаблона) и живая LLM — Google Gemini 2.5 Flash через OpenAI-совместимый эндпоинт, без единой правки кода.", {
-    x: MX + 0.26, y: dy + 0.6, w: lw - 0.52, h: 1.1, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 11.5, color: "D6DFEC", lineSpacingMultiple: 1.28, fit: "shrink",
-  });
+  s.addText(
+    "2 режима — офлайн (эвристики + покрытие шаблона) и живая LLM (Google Gemini 2.5 Flash), оба без сбоев. Ниже — настоящий вывод инструмента (офлайн-режим).",
+    { x: MX, y: 2.56, w: CW, h: 0.42, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 11.5, color: P.SLATE, lineSpacingMultiple: 1.15, fit: "shrink" }
+  );
 
-  const rx = MX + lw + 0.35;
-  const rw = CW - lw - 0.35;
-  const MAX_IH = 4.5; // оставляет место под подпись и нижний отступ слайда
-  const ih = Math.min(MAX_IH, rw / (1200 / 2200));
-  const iw = ih * (1200 / 2200);
-  s.addShape("roundRect", { x: rx - 0.06, y: 1.89, w: iw + 0.12, h: ih + 0.12, rectRadius: 0.06, fill: { color: P.INK }, line: { type: "none" }, shadow: shadow() });
-  s.addImage({ path: SHOT, x: rx, y: 1.95, w: iw, h: ih });
-  s.addText("Реальный вывод: офлайн-режим, поток геолокации (настоящий документ кейсодателя).", {
-    x: rx, y: 1.95 + ih + 0.16, w: Math.max(iw, 2.6), h: 0.55, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 10.5, italic: true, color: P.SLATE, lineSpacingMultiple: 1.2, fit: "shrink",
-  });
-  s.addNotes("Скриншот — настоящий HTML-отчёт инструмента (cli.py --format html), не макет. LLM-режим на этих же документах нашёл более глубокие содержательные проблемы — см. следующий слайд.");
+  // Крупный читаемый скриншот (2:1), по центру
+  const imgH = 3.95;
+  const imgW = imgH * (1260 / 646);
+  const imgX = (13.3 - imgW) / 2;
+  const imgY = 3.15;
+  s.addShape("roundRect", { x: imgX - 0.06, y: imgY - 0.06, w: imgW + 0.12, h: imgH + 0.12, rectRadius: 0.06, fill: { color: "FFFFFF" }, line: { color: P.LINE, width: 1 }, shadow: shadow() });
+  s.addImage({ path: SHOT, x: imgX, y: imgY, w: imgW, h: imgH });
+
+  s.addNotes("Скриншот — настоящий HTML-отчёт инструмента (cli.py --format html), не макет. Показан офлайн-режим на реальном документе кейсодателя. LLM-режим на этих же документах нашёл более глубокие содержательные проблемы — см. следующий слайд.");
 }
 
 /* ---------------------------------------------------------------- Slide 7: Real finding example */
