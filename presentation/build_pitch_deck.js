@@ -1,18 +1,26 @@
 /*
  * Demo Day питч — «ТЗ-Ревьюер» (кейс МТС, продукт NET).
- * 7 слайдов, кегль >= 24-30pt, заголовок = вывод.
+ * 8 слайдов, минимум текста, максимум реальных скриншотов.
  * Генерация: node build_pitch_deck.js
  */
 const path = require("path");
 const pptxgen = require("pptxgenjs");
 
 const OUT = path.join(__dirname, "ТЗ-Ревьюер — питч Demo Day.pptx");
-const SHOT_LLM = path.join(__dirname, "assets", "llm-output.png");
+const A = (n) => path.join(__dirname, "assets", n);
 
 const P = {
-  INK: "13223B", INK2: "1E3252", PAPER: "FFFFFF", MIST: "EEF2F7",
-  STEEL: "3E5C76", SLATE: "566173", ACCENT: "E5534B", AMBER: "D98324",
-  GREEN: "2E7D5B", GREY: "8A8F98", LINE: "D4DCE6",
+  INK: "0E1B2E",
+  INK2: "1B2E4A",
+  PAPER: "FFFFFF",
+  MIST: "F4F7FA",
+  ACCENT: "E5534B",
+  AMBER: "C8791A",
+  GOLD: "C9A227",
+  SLATE: "5A6678",
+  GREEN: "2E7D5B",
+  LINE: "E2E8F0",
+  DIM: "9FB0C7",
 };
 const HEAD = "Cambria";
 const BODY = "Calibri";
@@ -22,269 +30,270 @@ pres.layout = "LAYOUT_WIDE"; // 13.3 x 7.5
 pres.author = "Команда 6";
 pres.company = "AI Talent Hub — кейс МТС";
 
-const MX = 0.62;
+const MX = 0.72;
 const CW = 13.3 - MX * 2;
+const shadow = () => ({ type: "outer", color: "8FA0B5", blur: 14, offset: 4, angle: 90, opacity: 0.28 });
 
-const shadow = () => ({ type: "outer", color: "AAB4C0", blur: 10, offset: 3, angle: 90, opacity: 0.3 });
-
-function head(s, title, dark) {
-  s.addText(title, {
-    x: MX, y: 0.5, w: CW, h: 1.0, isTextBox: true, margin: 0, valign: "top",
-    fontFace: HEAD, fontSize: 33, bold: true, fit: "shrink",
-    color: dark ? P.PAPER : P.INK, lineSpacingMultiple: 1.05,
+let pageNo = 0;
+function chrome(s, dark) {
+  pageNo += 1;
+  if (pageNo === 1) return;
+  s.addText(String(pageNo).padStart(2, "0"), {
+    x: 13.3 - MX - 0.6, y: 0.6, w: 0.6, h: 0.32, isTextBox: true, margin: 0,
+    align: "right", valign: "top", fontFace: BODY, fontSize: 12,
+    charSpacing: 1, color: dark ? "4A6280" : "C3CDD9",
   });
 }
 
-/* ============================================ 1. Продукт */
+function head(s, kicker, title, dark) {
+  if (kicker) {
+    s.addText(kicker.toUpperCase(), {
+      x: MX, y: 0.62, w: CW, h: 0.3, isTextBox: true, margin: 0, valign: "top",
+      fontFace: BODY, fontSize: 11.5, bold: true, charSpacing: 4,
+      color: dark ? P.GOLD : P.ACCENT,
+    });
+  }
+  s.addText(title, {
+    x: MX, y: kicker ? 1.0 : 0.7, w: CW, h: 1.0, isTextBox: true, margin: 0, valign: "top",
+    fontFace: HEAD, fontSize: 32, bold: true, fit: "shrink",
+    color: dark ? P.PAPER : P.INK, lineSpacingMultiple: 1.06,
+  });
+}
+
+function shot(s, file, ratio, opts) {
+  const w = opts.w;
+  const h = w / ratio;
+  const x = opts.x !== undefined ? opts.x : (13.3 - w) / 2;
+  const y = opts.y;
+  s.addShape("roundRect", {
+    x: x - 0.05, y: y - 0.05, w: w + 0.1, h: h + 0.1, rectRadius: 0.05,
+    fill: { color: P.PAPER }, line: { color: P.LINE, width: 1 }, shadow: shadow(),
+  });
+  s.addImage({ path: A(file), x, y, w, h });
+  return y + h;
+}
+
+/* ===================================================== 1 · Титул */
 {
   const s = pres.addSlide();
   s.background = { color: P.INK };
-  s.addText("AI TALENT HUB · КЕЙС МТС · КОМАНДА 6", {
-    x: MX, y: 1.5, w: CW, h: 0.4, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 16, bold: true, charSpacing: 3, color: P.AMBER,
+
+  s.addShape("rect", { x: 0, y: 0, w: 13.3, h: 0.09, fill: { color: P.GOLD }, line: { type: "none" } });
+
+  s.addText("AI TALENT HUB  ·  КЕЙС МТС  ·  ПРОДУКТ NET", {
+    x: MX, y: 1.55, w: CW, h: 0.35, isTextBox: true, margin: 0, valign: "top",
+    fontFace: BODY, fontSize: 13, bold: true, charSpacing: 4, color: P.GOLD,
   });
+
   s.addText("ТЗ-Ревьюер", {
-    x: MX, y: 2.0, w: CW, h: 1.2, isTextBox: true, margin: 0, valign: "top",
-    fontFace: HEAD, fontSize: 60, bold: true, color: P.PAPER,
+    x: MX, y: 2.15, w: CW, h: 1.35, isTextBox: true, margin: 0, valign: "top",
+    fontFace: HEAD, fontSize: 66, bold: true, color: P.PAPER,
   });
-  s.addText("AI-ревьюер технических заданий для аналитика продукта NET", {
-    x: MX, y: 3.3, w: CW, h: 0.6, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 30, color: "D6DFEC",
+
+  s.addText("AI-ревьюер технических заданий для аналитика", {
+    x: MX, y: 3.55, w: CW, h: 0.55, isTextBox: true, margin: 0, valign: "top",
+    fontFace: BODY, fontSize: 27, color: P.DIM,
   });
-  s.addText("Находит в тексте места, которые разработчик поймёт неоднозначно, — до передачи задачи в разработку.", {
-    x: MX, y: 4.0, w: CW * 0.86, h: 1.0, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 26, color: "9FB0C7", lineSpacingMultiple: 1.25, fit: "shrink",
+
+  s.addShape("rect", { x: MX, y: 4.65, w: 2.0, h: 0.03, fill: { color: P.GOLD }, line: { type: "none" } });
+
+  s.addText("КОМАНДА 6", {
+    x: MX, y: 5.0, w: CW, h: 0.3, isTextBox: true, margin: 0, valign: "top",
+    fontFace: BODY, fontSize: 12, bold: true, charSpacing: 3, color: "6E8299",
   });
-  s.addText("Кайаал Яхья · Караташоглу Фырат — AI Engineers", {
-    x: MX, y: 6.4, w: CW, h: 0.4, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 18, color: P.GREY,
-  });
-  s.addNotes("0:00–0:30. Мы создали ТЗ-Ревьюер для аналитика продукта NET, который находит в техническом задании места, непонятные разработчику, — до передачи задачи в разработку.");
+  s.addText(
+    [
+      { text: "Кайаал Яхья", options: { bold: true, color: P.PAPER, fontSize: 24 } },
+      { text: "   AI Engineer", options: { color: P.DIM, fontSize: 18 } },
+    ],
+    { x: MX, y: 5.4, w: CW, h: 0.42, isTextBox: true, margin: 0, valign: "top", fontFace: BODY }
+  );
+  s.addText(
+    [
+      { text: "Караташоглу Фырат", options: { bold: true, color: P.PAPER, fontSize: 24 } },
+      { text: "   AI Engineer", options: { color: P.DIM, fontSize: 18 } },
+    ],
+    { x: MX, y: 5.9, w: CW, h: 0.42, isTextBox: true, margin: 0, valign: "top", fontFace: BODY }
+  );
+  chrome(s, true);
+  s.addNotes("0:00–0:30. Здравствуйте! Мы создали ТЗ-Ревьюер для аналитика продукта NET — инструмент, который находит в техническом задании места, непонятные разработчику, ещё до передачи задачи в разработку.");
 }
 
-/* ============================================ 2. Проблема */
+/* ===================================================== 2 · Проблема */
 {
   const s = pres.addSlide();
   s.background = { color: P.PAPER };
-  head(s, "Неточность в ТЗ находят уже на разработке — и цикл начинается заново");
+  head(s, "проблема", "Неточность в ТЗ находят уже на разработке");
 
-  const steps = ["Аналитик\nпишет ТЗ", "Передача\nв разработку", "Вопрос или\nнеоднозначность", "Возврат\nаналитику", "Пересогласование\nи переделка"];
-  const gap = 0.26;
-  const bw = (CW - gap * (steps.length - 1)) / steps.length;
+  const steps = ["ТЗ готово", "Разработка", "Неоднозначность", "Возврат", "Переделка"];
+  const gap = 0.28;
+  const bw = (CW - gap * 4) / 5;
   steps.forEach((t, i) => {
     const x = MX + i * (bw + gap);
     const hot = i >= 2;
     s.addShape("roundRect", {
-      x, y: 2.35, w: bw, h: 1.5, rectRadius: 0.1,
-      fill: { color: hot ? "FBE9E7" : P.MIST },
+      x, y: 2.75, w: bw, h: 1.35, rectRadius: 0.1,
+      fill: { color: hot ? "FCEDEB" : P.MIST },
       line: { color: hot ? P.ACCENT : P.LINE, width: hot ? 1.5 : 1 },
     });
     s.addText(t, {
-      x: x + 0.1, y: 2.35, w: bw - 0.2, h: 1.5, isTextBox: true, margin: 0,
-      align: "center", valign: "middle", fontFace: BODY, fontSize: 17, bold: true,
-      color: hot ? "8C2F27" : P.INK2, lineSpacingMultiple: 1.15, fit: "shrink",
+      x: x + 0.08, y: 2.75, w: bw - 0.16, h: 1.35, isTextBox: true, margin: 0,
+      align: "center", valign: "middle", fontFace: BODY, fontSize: 19, bold: true,
+      color: hot ? "8C2F27" : P.INK2, fit: "shrink",
     });
-    if (i < steps.length - 1) {
+    if (i < 4) {
       s.addText("›", {
-        x: x + bw, y: 2.35, w: gap, h: 1.5, isTextBox: true, margin: 0,
-        align: "center", valign: "middle", fontFace: BODY, fontSize: 22, bold: true, color: P.GREY,
+        x: x + bw, y: 2.75, w: gap, h: 1.35, isTextBox: true, margin: 0,
+        align: "center", valign: "middle", fontFace: BODY, fontSize: 24, bold: true, color: "C3CDD9",
       });
     }
   });
 
-  s.addText("Каждое такое возвращение — это пересогласование требований, переделка реализации и повторное тестирование.", {
-    x: MX, y: 4.35, w: CW, h: 0.9, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 28, color: P.INK2, lineSpacingMultiple: 1.25, fit: "shrink",
+  s.addText("Каждый возврат — это пересогласование, переделка и повторное тестирование.", {
+    x: MX, y: 4.75, w: CW, h: 0.8, isTextBox: true, margin: 0, valign: "top",
+    fontFace: BODY, fontSize: 26, color: P.SLATE, lineSpacingMultiple: 1.2,
   });
-  s.addText("Ручное ревью помогает, но зависит от опыта и загрузки конкретного человека.", {
-    x: MX, y: 5.45, w: CW, h: 0.7, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 24, italic: true, color: P.SLATE, fit: "shrink",
-  });
-  s.addNotes("0:30–0:50. Сейчас ТЗ вычитывают вручную. Часть неточностей всё равно доходит до разработки, и тогда запускается дорогой цикл: возврат, пересогласование, переделка, повторное тестирование.");
+  chrome(s);
+  s.addNotes("0:30–1:00. Сейчас техзадание вычитывают вручную. Часть неточностей всё равно доходит до разработки — и тогда документ возвращают аналитику, требования пересогласовывают, реализацию переделывают. Наш инструмент показывает эти места раньше, пока документ ещё у аналитика.");
 }
 
-/* ============================================ 3. Демо-сценарий */
+/* ===================================================== 3 · Сценарий */
 {
   const s = pres.addSlide();
   s.background = { color: P.PAPER };
-  head(s, "Один сценарий: от документа до конкретного замечания");
+  head(s, "демо", "Загрузил ТЗ — получил замечания с цитатами");
 
-  const flow = [
-    ["ВХОД", "Аналитик открывает\nготовое ТЗ"],
-    ["ДЕЙСТВИЕ", "Загружает файл\nи нажимает «Проверить»"],
-    ["СИСТЕМА", "Разбор → шаблон МТС\n→ LLM-ревью"],
-    ["РЕЗУЛЬТАТ", "Список замечаний\nс цитатами из текста"],
-  ];
+  const flow = ["Аналитик\nзагружает ТЗ", "Нажимает\n«Проверить»", "Разбор → шаблон\n→ LLM", "Замечания\nс цитатами"];
   const gap = 0.3;
   const bw = (CW - gap * 3) / 4;
-  flow.forEach((f, i) => {
+  flow.forEach((t, i) => {
     const x = MX + i * (bw + gap);
     const last = i === 3;
     s.addShape("roundRect", {
-      x, y: 2.3, w: bw, h: 2.0, rectRadius: 0.12,
-      fill: { color: last ? "E8F3EE" : P.MIST },
+      x, y: 2.25, w: bw, h: 1.35, rectRadius: 0.1,
+      fill: { color: last ? "E9F4EF" : P.MIST },
       line: { color: last ? P.GREEN : P.LINE, width: last ? 1.5 : 1 },
     });
-    s.addText(f[0], {
-      x: x + 0.18, y: 2.5, w: bw - 0.36, h: 0.35, isTextBox: true, margin: 0, valign: "top",
-      fontFace: BODY, fontSize: 14, bold: true, charSpacing: 2,
-      color: last ? P.GREEN : P.ACCENT,
-    });
-    s.addText(f[1], {
-      x: x + 0.18, y: 2.95, w: bw - 0.36, h: 1.2, isTextBox: true, margin: 0, valign: "top",
-      fontFace: BODY, fontSize: 20, bold: true, color: P.INK2, lineSpacingMultiple: 1.2, fit: "shrink",
+    s.addText(t, {
+      x: x + 0.1, y: 2.25, w: bw - 0.2, h: 1.35, isTextBox: true, margin: 0,
+      align: "center", valign: "middle", fontFace: BODY, fontSize: 18, bold: true,
+      color: last ? "1F5C44" : P.INK2, lineSpacingMultiple: 1.15, fit: "shrink",
     });
     if (i < 3) {
       s.addText("›", {
-        x: x + bw, y: 2.3, w: gap, h: 2.0, isTextBox: true, margin: 0,
-        align: "center", valign: "middle", fontFace: BODY, fontSize: 24, bold: true, color: P.GREY,
+        x: x + bw, y: 2.25, w: gap, h: 1.35, isTextBox: true, margin: 0,
+        align: "center", valign: "middle", fontFace: BODY, fontSize: 24, bold: true, color: "C3CDD9",
       });
     }
   });
 
-  s.addShape("roundRect", { x: MX, y: 4.7, w: CW, h: 1.5, rectRadius: 0.12, fill: { color: P.INK }, line: { type: "none" } });
-  s.addText("Каждое замечание: дословная цитата → что неясно → почему важно для разработки → вопрос аналитику", {
-    x: MX + 0.4, y: 4.7, w: CW - 0.8, h: 1.5, isTextBox: true, margin: 0, valign: "middle",
-    fontFace: BODY, fontSize: 28, color: P.PAPER, lineSpacingMultiple: 1.2, fit: "shrink",
-  });
-  s.addNotes("1:00–3:10 — живое демо. Показать: берём реальный документ кейсодателя, нажимаем «Проверить ТЗ», получаем список замечаний. Раскрыть одно замечание целиком. План Б — скриншоты со следующего слайда.");
+  shot(s, "ui-result.png", 2160 / 620, { w: 11.4, y: 4.1 });
+  chrome(s);
+  s.addNotes("1:00–3:10 — живое демо. План Б: этот и следующие слайды содержат настоящие экраны инструмента.");
 }
 
-/* ============================================ 4. Доказательство */
+/* ===================================================== 4 · Находка-герой */
 {
   const s = pres.addSlide();
   s.background = { color: P.PAPER };
-  head(s, "Нашёл противоречие внутри одного документа");
-
-  const iw = 11.0;
-  const ih = iw * (497 / 1316);
-  const ix = (13.3 - iw) / 2;
-  const iy = 1.8;
-  s.addShape("roundRect", { x: ix - 0.07, y: iy - 0.07, w: iw + 0.14, h: ih + 0.14, rectRadius: 0.08, fill: { color: P.PAPER }, line: { color: P.LINE, width: 1 }, shadow: shadow() });
-  s.addImage({ path: SHOT_LLM, x: ix, y: iy, w: iw, h: ih });
-
-  s.addText("Настоящий вывод на документе кейсодателя, режим LLM. Два раздела одного ТЗ требуют разной задержки — при чтении это легко пропустить.", {
-    x: MX, y: 6.15, w: CW, h: 1.0, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 22, color: P.INK2, lineSpacingMultiple: 1.25,
-  });
-  s.addNotes("Ключевое доказательство. Это не общий совет, а конкретное место в тексте: инструмент привёл цитату, объяснил риск и сформулировал вопрос аналитику.");
+  head(s, "что находит · 1", "Противоречие внутри одного документа");
+  shot(s, "llm-output.png", 1316 / 497, { w: 11.4, y: 2.2 });
+  chrome(s);
+  s.addNotes("Ключевое доказательство: два раздела одного ТЗ требуют разной задержки. Инструмент привёл обе цитаты и задал вопрос аналитику.");
 }
 
-/* ============================================ 5. Архитектура */
+/* ===================================================== 5 · Блокеры */
 {
   const s = pres.addSlide();
   s.background = { color: P.PAPER };
-  head(s, "Три слоя — и LLM только один из них");
+  head(s, "интерфейс", "Каждое замечание раскрывается до цитаты и вопроса");
+  shot(s, "ui-findings.png", 2120 / 990, { w: 10.6, y: 2.2 });
+  chrome(s);
+  s.addNotes("Настоящий экран инструмента: список замечаний с фильтром по категории, раскрытое замечание с цитатой, объяснением и вопросом аналитику.");
+}
+
+/* ===================================================== 6 · Покрытие */
+{
+  const s = pres.addSlide();
+  s.background = { color: P.PAPER };
+  head(s, "второй результат", "Проверка структуры по официальному шаблону МТС");
+  shot(s, "ui-coverage.png", 2120 / 780, { w: 11.0, y: 2.4 });
+  chrome(s);
+  s.addNotes("Кроме замечаний инструмент детерминированно проверяет 21 раздел шаблона: заполнен, пустой, помечен «не применимо», упомянут вне раздела или не найден.");
+}
+
+/* ===================================================== 7 · Архитектура */
+{
+  const s = pres.addSlide();
+  s.background = { color: P.PAPER };
+  head(s, "архитектура", "Три слоя — и LLM только один из них");
 
   const layers = [
-    ["1 · РАЗБОР ДОКУМЕНТА", "Word и Markdown →\nразделы и таблицы", "код"],
-    ["2 · КРИТЕРИИ МТС", "21 раздел шаблона +\n8 требований кейсодателя", "код"],
-    ["3 · LLM-РЕВЬЮ", "23 категории,\nобязательная цитата", "модель"],
+    ["01", "Разбор документа", "Word и Markdown →\nразделы и таблицы", false],
+    ["02", "Критерии МТС", "21 раздел шаблона +\n8 требований кейса", false],
+    ["03", "LLM-ревью", "23 категории,\nобязательная цитата", true],
   ];
-  const gap = 0.3;
+  const gap = 0.34;
   const bw = (CW - gap * 2) / 3;
   layers.forEach((l, i) => {
     const x = MX + i * (bw + gap);
-    const isLlm = i === 2;
     s.addShape("roundRect", {
-      x, y: 2.1, w: bw, h: 2.5, rectRadius: 0.12,
-      fill: { color: isLlm ? "FDF3E3" : P.MIST },
-      line: { color: isLlm ? P.AMBER : P.LINE, width: isLlm ? 1.5 : 1 },
+      x, y: 2.3, w: bw, h: 2.35, rectRadius: 0.1,
+      fill: { color: l[3] ? "FBF3E4" : P.MIST },
+      line: { color: l[3] ? P.AMBER : P.LINE, width: l[3] ? 1.5 : 1 },
     });
     s.addText(l[0], {
-      x: x + 0.22, y: 2.32, w: bw - 0.44, h: 0.4, isTextBox: true, margin: 0, valign: "top",
-      fontFace: BODY, fontSize: 14, bold: true, charSpacing: 1.5, color: isLlm ? "7A4B00" : P.ACCENT,
+      x: x + 0.28, y: 2.52, w: bw - 0.56, h: 0.42, isTextBox: true, margin: 0, valign: "top",
+      fontFace: HEAD, fontSize: 22, bold: true, color: l[3] ? P.AMBER : "B9C4D2",
     });
     s.addText(l[1], {
-      x: x + 0.22, y: 2.8, w: bw - 0.44, h: 1.05, isTextBox: true, margin: 0, valign: "top",
-      fontFace: BODY, fontSize: 21, bold: true, color: P.INK2, lineSpacingMultiple: 1.18,
+      x: x + 0.28, y: 3.0, w: bw - 0.56, h: 0.4, isTextBox: true, margin: 0, valign: "top",
+      fontFace: BODY, fontSize: 21, bold: true, color: P.INK,
     });
-    s.addText(l[2] === "код" ? "детерминированно" : "смысл и формулировки", {
-      x: x + 0.22, y: 4.02, w: bw - 0.44, h: 0.35, isTextBox: true, margin: 0, valign: "top",
-      fontFace: BODY, fontSize: 15, italic: true, color: P.SLATE,
+    s.addText(l[2], {
+      x: x + 0.28, y: 3.48, w: bw - 0.56, h: 0.95, isTextBox: true, margin: 0, valign: "top",
+      fontFace: BODY, fontSize: 17, color: P.SLATE, lineSpacingMultiple: 1.2,
     });
   });
 
-  s.addShape("roundRect", { x: MX, y: 4.95, w: CW, h: 1.7, rectRadius: 0.12, fill: { color: P.INK }, line: { type: "none" } });
-  s.addText(
-    [
-      { text: "Почему так: ", options: { bold: true, color: P.AMBER } },
-      { text: "структуру и критерии проверяет код, LLM отвечает только за смысл. Без доступа к модели инструмент продолжает работать. Ограничение: текст, не сканы.", options: { color: "D6DFEC" } },
-    ],
-    { x: MX + 0.4, y: 4.95, w: CW - 0.8, h: 1.7, isTextBox: true, margin: 0, valign: "middle", fontFace: BODY, fontSize: 23, lineSpacingMultiple: 1.22 }
-  );
-  s.addNotes("3:10–4:10. Два слоя из трёх — обычный код, они детерминированы и воспроизводимы. LLM отвечает только за смысловые вещи. Это же даёт страховку: если модели нет, первые два слоя работают.");
-}
-
-/* ============================================ 6. Метрики */
-{
-  const s = pres.addSlide();
-  s.background = { color: P.PAPER };
-  head(s, "Что измерено, а что пока гипотеза");
-
-  const colW = (CW - 0.4) / 2;
-
-  s.addShape("roundRect", { x: MX, y: 2.05, w: colW, h: 3.75, rectRadius: 0.12, fill: { color: "E8F3EE" }, line: { color: P.GREEN, width: 1.5 } });
-  s.addText("ИЗМЕРЕНО", { x: MX + 0.35, y: 2.3, w: colW - 0.7, h: 0.4, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 16, bold: true, charSpacing: 2, color: P.GREEN });
-  s.addText(
-    [
-      { text: "3 реальных ТЗ — без сбоев", options: { bullet: true, breakLine: true } },
-      { text: "20 замечаний, все с цитатой", options: { bullet: true, breakLine: true } },
-      { text: "смена провайдера без правок кода", options: { bullet: true, breakLine: true } },
-      { text: "73 автотеста проходят", options: { bullet: true } },
-    ],
-    { x: MX + 0.35, y: 2.85, w: colW - 0.7, h: 2.75, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 21, color: P.INK2, lineSpacingMultiple: 1.15, paraSpaceAfter: 9 }
-  );
-
-  const rx = MX + colW + 0.4;
-  s.addShape("roundRect", { x: rx, y: 2.05, w: colW, h: 3.75, rectRadius: 0.12, fill: { color: "FDF3E3" }, line: { color: P.AMBER, width: 1.5 } });
-  s.addText("ПОКА ГИПОТЕЗА", { x: rx + 0.35, y: 2.3, w: colW - 0.7, h: 0.4, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 16, bold: true, charSpacing: 2, color: "7A4B00" });
-  s.addText(
-    [
-      { text: "precision / recall — нужна разметка", options: { bullet: true, breakLine: true } },
-      { text: "снижение поздних уточнений — нужен пилот", options: { bullet: true, breakLine: true } },
-      { text: "качество проверено вручную, не в цифрах", options: { bullet: true } },
-    ],
-    { x: rx + 0.35, y: 2.85, w: colW - 0.7, h: 2.75, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 21, color: P.INK2, lineSpacingMultiple: 1.15, paraSpaceAfter: 9 }
-  );
-
-  s.addText("Мы честно разделяем проверенное и непроверенное — и знаем, чем закрыть вторую колонку.", {
-    x: MX, y: 6.1, w: CW, h: 0.7, isTextBox: true, margin: 0, valign: "top",
-    fontFace: BODY, fontSize: 22, italic: true, color: P.SLATE,
+  s.addText("Структуру и критерии проверяет код. Без доступа к модели инструмент продолжает работать.", {
+    x: MX, y: 5.25, w: CW, h: 0.85, isTextBox: true, margin: 0, valign: "top",
+    fontFace: BODY, fontSize: 24, color: P.INK2, lineSpacingMultiple: 1.2,
   });
-  s.addNotes("Разделяем измеренное и гипотезу. Для точных метрик нужна размеченная экспертом выборка и реальные правки разработчиков NET.");
+  chrome(s);
+  s.addNotes("3:10–4:10. Первые два слоя — обычный код, детерминированы и воспроизводимы. LLM отвечает только за смысл, и каждое его замечание обязано содержать дословную цитату, иначе отбрасывается. Провайдера меняли на живой Gemini без единой правки кода.");
 }
 
-/* ============================================ 7. Финал */
+/* ===================================================== 8 · Итог */
 {
   const s = pres.addSlide();
   s.background = { color: P.INK };
-  head(s, "Прототип работает — следующий шаг пилот на реальных правках NET", true);
+  head(s, "готовность", "Прототип работает — следующий шаг пилот", true);
 
   const cols = [
-    ["СДЕЛАНО", ["инструмент: веб и CLI", "3 документа кейсодателя", "код открыт, тесты зелёные"]],
-    ["ПРОВЕРЕНО", ["все замечания с цитатой", "смена провайдера без правок", "офлайн-режим как страховка"]],
-    ["СЛЕДУЮЩИЙ ШАГ", ["10–15 реальных ТЗ от NET", "измерить precision", "тест с 2–3 аналитиками"]],
+    ["ИЗМЕРЕНО", ["3 реальных ТЗ", "20 замечаний с цитатой", "73 автотеста"], P.GREEN],
+    ["ПОКА ГИПОТЕЗА", ["precision / recall", "эффект на уточнениях"], P.AMBER],
+    ["СЛЕДУЮЩИЙ ШАГ", ["правки от NET", "пилот с аналитиками"], P.GOLD],
   ];
-  const gap = 0.3;
+  const gap = 0.34;
   const bw = (CW - gap * 2) / 3;
   cols.forEach((c, i) => {
     const x = MX + i * (bw + gap);
-    const accent = i === 2 ? P.AMBER : "8FA8C2";
-    s.addShape("roundRect", { x, y: 2.15, w: bw, h: 2.6, rectRadius: 0.12, fill: { color: P.INK2 }, line: { color: i === 2 ? P.AMBER : "2E4767", width: 1 } });
-    s.addText(c[0], { x: x + 0.25, y: 2.36, w: bw - 0.5, h: 0.4, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 15, bold: true, charSpacing: 2, color: accent });
+    s.addShape("roundRect", { x, y: 2.25, w: bw, h: 2.3, rectRadius: 0.1, fill: { color: P.INK2 }, line: { color: "27405F", width: 1 } });
+    s.addText(c[0], { x: x + 0.28, y: 2.48, w: bw - 0.56, h: 0.35, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 12.5, bold: true, charSpacing: 2.5, color: c[2] });
     s.addText(
       c[1].map((t, j) => ({ text: t, options: { bullet: true, breakLine: j < c[1].length - 1 } })),
-      { x: x + 0.25, y: 2.84, w: bw - 0.5, h: 1.75, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 18, color: "D6DFEC", lineSpacingMultiple: 1.15, paraSpaceAfter: 7 }
+      { x: x + 0.28, y: 2.95, w: bw - 0.56, h: 1.45, isTextBox: true, margin: 0, valign: "top", fontFace: BODY, fontSize: 18, color: "D6DFEC", lineSpacingMultiple: 1.18, paraSpaceAfter: 8 }
     );
   });
 
-  s.addShape("roundRect", { x: MX, y: 5.05, w: CW, h: 1.6, rectRadius: 0.12, fill: { color: "20385C" }, line: { color: P.AMBER, width: 1.5 } });
-  s.addText("ТЗ-Ревьюер уже находит в реальных ТЗ противоречия, которые люди пропускают при чтении. Чтобы измерить эффект, нам нужны реальные правки разработчиков NET — и мы готовы к пилоту.", {
-    x: MX + 0.4, y: 5.05, w: CW - 0.8, h: 1.6, isTextBox: true, margin: 0, valign: "middle",
-    fontFace: BODY, fontSize: 22, bold: true, color: P.PAPER, lineSpacingMultiple: 1.2,
+  s.addShape("roundRect", { x: MX, y: 5.0, w: CW, h: 1.5, rectRadius: 0.1, fill: { color: "162944" }, line: { color: P.GOLD, width: 1.5 } });
+  s.addText("Мы находим в реальных ТЗ противоречия, которые люди пропускают. Чтобы измерить эффект, нужны реальные правки NET — и мы готовы к пилоту.", {
+    x: MX + 0.45, y: 5.0, w: CW - 0.9, h: 1.5, isTextBox: true, margin: 0, valign: "middle",
+    fontFace: BODY, fontSize: 22, bold: true, color: P.PAPER, lineSpacingMultiple: 1.22,
   });
-  s.addNotes("4:10–5:00. Финальная фраза читается дословно, 12–15 секунд. Ценность + что доказано + следующий шаг + запрос.");
+  chrome(s, true);
+  s.addNotes("4:10–5:00. Финальная фраза читается дословно, 12–15 секунд.");
 }
 
 pres.writeFile({ fileName: OUT }).then((f) => console.log("Готово:", f));
